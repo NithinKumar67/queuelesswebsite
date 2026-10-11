@@ -69,6 +69,15 @@ Never commit `.env` files (they are git-ignored).
 - Keep the ML service running; if it is unavailable, the backend falls back to a formula, but model accuracy will be worse.
 - Build the frontend for production with `npm run build` and serve the generated static assets behind your web server or platform.
 
+## Deploy to Render manually
+Create three separate Render services from this repository. Use the paths, build commands, and start commands below; substitute the actual Render service URLs in the environment variables.
+
+1. **ML API** — create a Python web service with root directory `mlapi`, build command `pip install -r requirements.txt && python generate_data.py && python train.py`, and start command `uvicorn main:app --host 0.0.0.0 --port $PORT`. Set `PYTHON_VERSION` to `3.11.11` and health check path to `/health`.
+2. **Backend** — create a Node.js web service with root directory `backend`, build command `npm ci`, start command `npm start`, and health check path `/api/health`. Set `MONGO_URI` to your production MongoDB connection string, `SESSION_SECRET` to a long random secret, `CLIENT_URL` to the frontend origin, and `ML_API_URL` to the ML API origin. Also set `NODE_ENV=production`, `COOKIE_SECURE=true`, `COOKIE_SAMESITE=none`, and `TRUST_PROXY=1`.
+3. **Frontend** — create a static site with root directory `frontend`, build command `npm ci && npm run build`, and publish directory `dist`. Set `VITE_API_URL` to the backend URL including `/api`. Add a rewrite from `/*` to `/index.html` for client-side routes.
+
+Deploy the ML API and frontend first so you can use their service URLs when configuring the backend. Then redeploy the frontend after setting `VITE_API_URL`. The prediction model is generated during the ML API build because the trained model file is git-ignored.
+
 ## Start order
 1. `mlapi`:    `uvicorn main:app --port 8000`   (production: add `--host 0.0.0.0`, no `--reload`)
 2. `backend`:  `npm start`  (development: `npm run dev`)
